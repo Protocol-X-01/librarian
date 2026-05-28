@@ -1,0 +1,16 @@
+# Librarian — extra source paths.
+#
+# Anything listed here is walked recursively by the `extra_paths` collector. Use this
+# for custom source-built binaries, github/gist drops, security toolkits added to
+# $PATH outside the package managers, etc.
+#
+# Excluded from this file by design: $HOME, $HOME/Documents, $HOME/Downloads.
+# The Librarian intentionally does not enumerate those (too noisy, too churny).
+
+[extra_paths]
+paths = [
+    # "/opt/custom-builds/bin",
+    # "/srv/tools",
+    # "/usr/local/securify-tools",
+    # "/usr/local/security-tools",
+]

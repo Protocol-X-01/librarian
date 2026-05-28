@@ -1,0 +1,23 @@
+# Librarian: refresh the pacman+aur index after every package transaction.
+#
+# Installed to /etc/pacman.d/hooks/librarian.hook by scripts/install.sh.
+# Fires for every Install / Upgrade / Remove regardless of whether the user
+# invoked pacman directly or via yay (yay shells out to pacman for the
+# transaction step, so this hook covers AUR installs automatically).
+#
+# We restrict the refresh to --source pacman --source aur. The path collector
+# only matters for binaries pacman doesn't track, so it is intentionally skipped
+# here to keep the hook fast (~5s instead of ~10s).
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Refreshing Librarian tool index...
+When = PostTransaction
+Exec = /usr/local/bin/librarian refresh --source pacman --source aur --quiet
+AbortOnFail = false

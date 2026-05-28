@@ -1,0 +1,25 @@
+[package]
+name = "librarian-enrichment"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Bright Data-backed enrichment: fetches descriptions, github stars, and security context for obscure tools."
+
+[dependencies]
+librarian-core = { path = "../librarian-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+dotenvy.workspace = true
+rusqlite.workspace = true
+
+[lints]
+workspace = true

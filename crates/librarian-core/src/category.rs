@@ -1,0 +1,233 @@
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::str::FromStr;
+
+/// Tool category. The bulk of variants mirror BlackArch's package groups so we get
+/// hundreds of tools categorized for free; the tail covers non-BlackArch ecosystems.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Category {
+    // -------- BlackArch groups --------
+    AntiForensic,
+    Automation,
+    Automobile,
+    Backdoor,
+    Binary,
+    Bluetooth,
+    Code,
+    Config,
+    Cracker,
+    Crypto,
+    Database,
+    Debugger,
+    Decompiler,
+    Defensive,
+    Disassembler,
+    Dos,
+    Drone,
+    Exploitation,
+    Fingerprint,
+    Firmware,
+    Forensic,
+    Fuzzer,
+    Gpu,
+    Hardware,
+    Honeypot,
+    ImageProcessing,
+    IpProtocol,
+    Keylogger,
+    Malware,
+    Misc,
+    Mobile,
+    Networking,
+    Nfc,
+    Packer,
+    Proxy,
+    Radio,
+    Recon,
+    ReverseEngineering,
+    Scanner,
+    Sniffer,
+    SocialEngineering,
+    Spoof,
+    Stego,
+    Tunnel,
+    Unpacker,
+    Voip,
+    Webapp,
+    Windows,
+    Wireless,
+
+    // -------- Librarian extensions for non-BlackArch tooling --------
+    BlockchainSecurity,
+    SmartContractAudit,
+    Development,
+    BuildSystem,
+    LanguageRuntime,
+    Editor,
+    Shell,
+    SystemAdmin,
+    Container,
+    DataScience,
+    MachineLearning,
+    Documentation,
+    Uncategorized,
+}
+
+impl Category {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Category::AntiForensic => "anti-forensic",
+            Category::Automation => "automation",
+            Category::Automobile => "automobile",
+            Category::Backdoor => "backdoor",
+            Category::Binary => "binary",
+            Category::Bluetooth => "bluetooth",
+            Category::Code => "code",
+            Category::Config => "config",
+            Category::Cracker => "cracker",
+            Category::Crypto => "crypto",
+            Category::Database => "database",
+            Category::Debugger => "debugger",
+            Category::Decompiler => "decompiler",
+            Category::Defensive => "defensive",
+            Category::Disassembler => "disassembler",
+            Category::Dos => "dos",
+            Category::Drone => "drone",
+            Category::Exploitation => "exploitation",
+            Category::Fingerprint => "fingerprint",
+            Category::Firmware => "firmware",
+            Category::Forensic => "forensic",
+            Category::Fuzzer => "fuzzer",
+            Category::Gpu => "gpu",
+            Category::Hardware => "hardware",
+            Category::Honeypot => "honeypot",
+            Category::ImageProcessing => "image-processing",
+            Category::IpProtocol => "ip-protocol",
+            Category::Keylogger => "keylogger",
+            Category::Malware => "malware",
+            Category::Misc => "misc",
+            Category::Mobile => "mobile",
+            Category::Networking => "networking",
+            Category::Nfc => "nfc",
+            Category::Packer => "packer",
+            Category::Proxy => "proxy",
+            Category::Radio => "radio",
+            Category::Recon => "recon",
+            Category::ReverseEngineering => "reverse-engineering",
+            Category::Scanner => "scanner",
+            Category::Sniffer => "sniffer",
+            Category::SocialEngineering => "social-engineering",
+            Category::Spoof => "spoof",
+            Category::Stego => "stego",
+            Category::Tunnel => "tunnel",
+            Category::Unpacker => "unpacker",
+            Category::Voip => "voip",
+            Category::Webapp => "webapp",
+            Category::Windows => "windows",
+            Category::Wireless => "wireless",
+            Category::BlockchainSecurity => "blockchain-security",
+            Category::SmartContractAudit => "smart-contract-audit",
+            Category::Development => "development",
+            Category::BuildSystem => "build-system",
+            Category::LanguageRuntime => "language-runtime",
+            Category::Editor => "editor",
+            Category::Shell => "shell",
+            Category::SystemAdmin => "system-admin",
+            Category::Container => "container",
+            Category::DataScience => "data-science",
+            Category::MachineLearning => "machine-learning",
+            Category::Documentation => "documentation",
+            Category::Uncategorized => "uncategorized",
+        }
+    }
+
+    /// Map a BlackArch group name (e.g. `blackarch-recon`) to a [`Category`].
+    pub fn from_blackarch_group(group: &str) -> Option<Self> {
+        let suffix = group.strip_prefix("blackarch-").unwrap_or(group);
+        match suffix {
+            "anti-forensic" => Some(Category::AntiForensic),
+            "automation" => Some(Category::Automation),
+            "automobile" => Some(Category::Automobile),
+            "backdoor" => Some(Category::Backdoor),
+            "binary" => Some(Category::Binary),
+            "bluetooth" => Some(Category::Bluetooth),
+            "code-audit" | "code" => Some(Category::Code),
+            "config" => Some(Category::Config),
+            "cracker" => Some(Category::Cracker),
+            "crypto" | "crypto-stego" => Some(Category::Crypto),
+            "database" => Some(Category::Database),
+            "debugger" => Some(Category::Debugger),
+            "decompiler" => Some(Category::Decompiler),
+            "defensive" => Some(Category::Defensive),
+            "disassembler" => Some(Category::Disassembler),
+            "dos" => Some(Category::Dos),
+            "drone" => Some(Category::Drone),
+            "exploitation" => Some(Category::Exploitation),
+            "fingerprint" => Some(Category::Fingerprint),
+            "firmware" => Some(Category::Firmware),
+            "forensic" => Some(Category::Forensic),
+            "fuzzer" => Some(Category::Fuzzer),
+            "gpu" => Some(Category::Gpu),
+            "hardware" => Some(Category::Hardware),
+            "honeypot" => Some(Category::Honeypot),
+            "image" | "image-processing" => Some(Category::ImageProcessing),
+            "ip-protocol" | "networking-ip" => Some(Category::IpProtocol),
+            "keylogger" => Some(Category::Keylogger),
+            "malware" => Some(Category::Malware),
+            "misc" => Some(Category::Misc),
+            "mobile" => Some(Category::Mobile),
+            "networking" => Some(Category::Networking),
+            "nfc" => Some(Category::Nfc),
+            "packer" => Some(Category::Packer),
+            "proxy" => Some(Category::Proxy),
+            "radio" => Some(Category::Radio),
+            "recon" => Some(Category::Recon),
+            "reversing" | "reverse-engineering" => Some(Category::ReverseEngineering),
+            "scanner" => Some(Category::Scanner),
+            "sniffer" => Some(Category::Sniffer),
+            "social" | "social-engineering" => Some(Category::SocialEngineering),
+            "spoof" => Some(Category::Spoof),
+            "stego" => Some(Category::Stego),
+            "tunnel" => Some(Category::Tunnel),
+            "unpacker" => Some(Category::Unpacker),
+            "voip" => Some(Category::Voip),
+            "webapp" => Some(Category::Webapp),
+            "windows" => Some(Category::Windows),
+            "wireless" => Some(Category::Wireless),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for Category {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for Category {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let normalized = s.trim().to_ascii_lowercase().replace('_', "-");
+        Category::from_blackarch_group(&normalized)
+            .or_else(|| match normalized.as_str() {
+                "blockchain-security" => Some(Category::BlockchainSecurity),
+                "smart-contract-audit" => Some(Category::SmartContractAudit),
+                "development" => Some(Category::Development),
+                "build-system" => Some(Category::BuildSystem),
+                "language-runtime" => Some(Category::LanguageRuntime),
+                "editor" => Some(Category::Editor),
+                "shell" => Some(Category::Shell),
+                "system-admin" => Some(Category::SystemAdmin),
+                "container" => Some(Category::Container),
+                "data-science" => Some(Category::DataScience),
+                "machine-learning" => Some(Category::MachineLearning),
+                "documentation" => Some(Category::Documentation),
+                "uncategorized" => Some(Category::Uncategorized),
+                _ => None,
+            })
+            .ok_or_else(|| anyhow::anyhow!("unknown category: {s}"))
+    }
+}
