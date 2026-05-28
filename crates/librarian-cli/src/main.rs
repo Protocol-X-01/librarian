@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use librarian_collectors::{all_collectors, collector_for, path::PathCollector};
 use librarian_core::{Collector, Source, Store};
-use librarian_enrichment::{BrightDataClient, EnrichmentConfig, EnrichmentService};
+use librarian_enrichment::{BrightDataClient, EnrichmentConfig, EnrichmentService, LoadDiagnostic};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -230,11 +230,9 @@ fn cmd_sync(
 
     // Phase 2: enrichment.
     let store = open_store(db)?;
-    let Some(client) = BrightDataClient::from_env() else {
-        println!(
-            "\nNo BRIGHT_DATA_API_KEY in /etc/librarian/.env (or ~/.config/librarian/.env) — \
-             skipping enrichment. Edit that file and re-run `librarian sync` to populate."
-        );
+    let (maybe_client, diagnostic) = BrightDataClient::from_env_diagnosed();
+    let Some(client) = maybe_client else {
+        print_enrichment_skip(&diagnostic);
         return Ok(());
     };
 
@@ -462,6 +460,56 @@ fn cmd_list(db: &Path, source: Option<Source>, category: Option<&str>) -> Result
         println!("{name:<30}  [{src:<8}/{cat:<20}]  {path}");
     }
     Ok(())
+}
+
+/// Translate the LoadDiagnostic from BrightDataClient into a precise, actionable message.
+/// Replaces the prior catch-all "no key found" that swallowed permission errors silently.
+fn print_enrichment_skip(diag: &LoadDiagnostic) {
+    println!();
+    match diag {
+        LoadDiagnostic::Loaded => {
+            // Should never reach here — caller only calls this when client is None.
+        }
+        LoadDiagnostic::NoFileFound { searched } => {
+            println!("Enrichment skipped: no .env file found.");
+            println!("  Searched:");
+            for p in searched {
+                println!("    - {}", p.display());
+            }
+            println!("  Create /etc/librarian/.env with BRIGHT_DATA_API_KEY=... and re-run `librarian sync`.");
+            println!("  Template: /etc/librarian/.env was installed from system/config-templates/env.example");
+        }
+        LoadDiagnostic::Unreadable { path, error } => {
+            println!("Enrichment skipped: cannot read {}.", path.display());
+            println!("  Error: {error}");
+            if path.starts_with("/etc/librarian") {
+                println!();
+                println!("  This is almost always a group-membership issue.");
+                println!("  /etc/librarian/.env is mode 0640 root:librarian by design (it holds API keys).");
+                println!("  Your current shell process needs the `librarian` group active. Check:");
+                println!();
+                println!("      id -nG | tr ' ' '\\n' | grep librarian");
+                println!();
+                println!("  If that prints nothing:");
+                println!("    - `newgrp librarian` activates the group in THIS shell only, OR");
+                println!("    - fully log out of the desktop session and back in.");
+                println!("  (Opening a new terminal in the same X/Wayland session is not enough —");
+                println!("   the supplementary group is attached at session start.)");
+            }
+        }
+        LoadDiagnostic::NoApiKey { loaded } => {
+            println!("Enrichment skipped: BRIGHT_DATA_API_KEY missing or empty.");
+            println!("  Successfully read:");
+            for p in loaded {
+                println!("    - {}", p.display());
+            }
+            println!();
+            println!("  Check spelling — the variable must be exactly `BRIGHT_DATA_API_KEY=...`");
+            println!("  (note the underscore between BRIGHT and DATA; some configs use BRIGHTDATA_*).");
+            println!();
+            println!("  Verify with:  grep -E '^BRIGHT_DATA_API_KEY=' /etc/librarian/.env");
+        }
+    }
 }
 
 /// Restore SIGPIPE's default behavior so `librarian list | head` exits cleanly instead

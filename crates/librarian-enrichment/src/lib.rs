@@ -12,5 +12,5 @@
 mod client;
 mod service;
 
-pub use client::{BrightDataClient, SerpEngine, SerpResult, SerpResults};
+pub use client::{BrightDataClient, LoadDiagnostic, SerpEngine, SerpResult, SerpResults};
 pub use service::{Enrichment, EnrichmentConfig, EnrichmentReport, EnrichmentService};

@@ -4,6 +4,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 const UNLOCKER_ENDPOINT: &str = "https://api.brightdata.com/request";
 
@@ -15,22 +16,78 @@ pub struct BrightDataClient {
     client: reqwest::Client,
 }
 
+/// Why a `BrightDataClient::from_env_diagnosed` call did or didn't produce a client.
+/// Callers (the CLI) format this into a user-facing message — silent failures here
+/// are how things like "the .env file exists but you can't read it" become invisible.
+#[derive(Debug)]
+pub enum LoadDiagnostic {
+    /// API key present, client built successfully.
+    Loaded,
+    /// No env file existed at any of the searched paths.
+    NoFileFound { searched: Vec<PathBuf> },
+    /// A file existed but couldn't be read or parsed. Almost always perm-denied on
+    /// `/etc/librarian/.env` when the user's shell isn't in the `librarian` group.
+    Unreadable { path: PathBuf, error: String },
+    /// One or more env files were read, but `BRIGHT_DATA_API_KEY` was missing or empty.
+    NoApiKey { loaded: Vec<PathBuf> },
+}
+
 impl BrightDataClient {
-    /// Build a client from environment variables. Loads `/etc/librarian/.env` first if
-    /// present (silent if missing). Returns `None` when no API key is configured —
-    /// callers should treat that as "skip enrichment, fall back to local rescan only."
+    /// Backwards-compatible shim — drops the diagnostic.
     pub fn from_env() -> Option<Self> {
-        let _ = dotenvy::from_filename("/etc/librarian/.env");
-        // Also try a user-level override for development.
+        Self::from_env_diagnosed().0
+    }
+
+    /// Build a client from environment, returning a structured diagnostic alongside
+    /// the optional client so the CLI can print actionable error messages.
+    ///
+    /// Search order (later files override earlier ones, matching shell convention):
+    ///   1. `/etc/librarian/.env`
+    ///   2. `$HOME/.config/librarian/.env` (dev override)
+    pub fn from_env_diagnosed() -> (Option<Self>, LoadDiagnostic) {
+        let mut search_paths: Vec<PathBuf> = vec![PathBuf::from("/etc/librarian/.env")];
         if let Some(home) = std::env::var_os("HOME") {
-            let path = std::path::PathBuf::from(home).join(".config/librarian/.env");
-            let _ = dotenvy::from_filename(&path);
+            search_paths.push(PathBuf::from(home).join(".config/librarian/.env"));
         }
 
-        let api_key = std::env::var("BRIGHT_DATA_API_KEY")
-            .ok()
-            .filter(|s| !s.is_empty())?;
-        Some(Self {
+        let mut loaded_paths: Vec<PathBuf> = Vec::new();
+
+        for path in &search_paths {
+            match dotenvy::from_filename(path) {
+                Ok(_) => loaded_paths.push(path.clone()),
+                Err(e) => {
+                    // dotenvy wraps io errors; treat "not found" as expected, anything
+                    // else (permission denied, parse error, isadirectory, …) as a hard
+                    // diagnostic so the user knows exactly why enrichment skipped.
+                    if let Some(io_err) = io_error_of(&e) {
+                        if io_err.kind() == std::io::ErrorKind::NotFound {
+                            continue;
+                        }
+                    }
+                    return (
+                        None,
+                        LoadDiagnostic::Unreadable {
+                            path: path.clone(),
+                            error: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
+        let api_key = match std::env::var("BRIGHT_DATA_API_KEY") {
+            Ok(k) if !k.is_empty() => k,
+            _ => {
+                let diag = if loaded_paths.is_empty() {
+                    LoadDiagnostic::NoFileFound { searched: search_paths }
+                } else {
+                    LoadDiagnostic::NoApiKey { loaded: loaded_paths }
+                };
+                return (None, diag);
+            }
+        };
+
+        let client = Self {
             api_key,
             unlocker_zone: std::env::var("BRIGHT_DATA_UNLOCKER_ZONE")
                 .unwrap_or_else(|_| "web_unlocker1".to_string()),
@@ -40,7 +97,8 @@ impl BrightDataClient {
                 .timeout(std::time::Duration::from_secs(60))
                 .build()
                 .unwrap_or_default(),
-        })
+        };
+        (Some(client), LoadDiagnostic::Loaded)
     }
 
     pub fn is_configured(&self) -> bool {
@@ -161,6 +219,15 @@ fn urlencode_min(s: &str) -> String {
             _ => format!("%{b:02X}"),
         })
         .collect()
+}
+
+/// Extract an `io::Error` from a `dotenvy::Error` regardless of which variant wraps it.
+/// dotenvy's enum keeps changing across versions, so we match on Debug as a fallback.
+fn io_error_of(e: &dotenvy::Error) -> Option<&std::io::Error> {
+    match e {
+        dotenvy::Error::Io(io) => Some(io),
+        _ => None,
+    }
 }
 
 fn parse_brd_serp_json(body: &str) -> Option<Vec<SerpResult>> {
