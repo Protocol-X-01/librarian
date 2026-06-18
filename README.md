@@ -20,7 +20,7 @@ By source:
   path           1139    pip2            268    aur          189
   cargo            49    npm              28    uv            18
   foundry           5    rustup            4    conda          3
-  bun               2    docker            1    sagemath       1
+  bun               2    docker            1    
 
 Top 20 categories:
   (none)                 9230    fuzzer                 206
