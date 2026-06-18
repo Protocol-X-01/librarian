@@ -69,7 +69,6 @@ Search latency at 10K rows: a few milliseconds (FTS5 + SQLite indexes).
 | `uv`               | `uv tool install` binaries                                      |
 | `conda`            | Conda environments                                              |
 | `npm` / `yarn` / `pnpm` / `bun` | JavaScript ecosystem global installs               |
-| `sagemath`         | SageMath wrappers (internal Python world deliberately skipped)  |
 | `docker`           | Locally pulled images, treated as runnable tools                |
 | `desktop`          | `.desktop` entries from XDG application dirs                    |
 | `extra_paths`      | User-defined directories from `/etc/librarian/sources.toml`     |
